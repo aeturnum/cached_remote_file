@@ -2,7 +2,7 @@ import inspect
 import unittest
 import os
 
-from cached_remote_file import BaseFile
+from file_management import BaseFile
 
 TEST_DIRECTORY = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 TEST_DATA_DIRECTORY = 'test_data'

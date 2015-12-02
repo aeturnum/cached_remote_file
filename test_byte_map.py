@@ -47,6 +47,24 @@ class TestChunk(unittest.TestCase):
         self.check_overlap(b, [[3,3], [4,6], [7,7]])
         self.check_overlap(c, [[1,2], [3,7], [8,12]])
 
+    def test_tags(self):
+        a = Chunk(1, 3, 'a')
+        b = Chunk(2, 4, 'b')
+
+        self.assertTrue('a' in a)
+        self.assertTrue('b' not in a)
+        self.assertTrue('a' not in b)
+        self.assertTrue('b' in b)
+
+        overlaps = a.overlap(b)
+        self.assertEqual(len(overlaps), 3)
+        self.assertTrue('a' in overlaps[0])
+        self.assertTrue('b' not in overlaps[0])
+        self.assertTrue('a' in overlaps[1])
+        self.assertTrue('b' in overlaps[1])
+        self.assertTrue('a' not in overlaps[2])
+        self.assertTrue('b' in overlaps[2])
+
     def test_operators(self):
         a = Chunk(1,4)
         b = Chunk(2,6)
@@ -66,10 +84,38 @@ class TestByteMap(unittest.TestCase):
     def setUp(self):
         self.tbm = ByteMap(15, 'a')
 
-
-    def test_basic(self):
+    def test_classify(self):
         b = Chunk(5, 10, 'b')
 
-        print self.tbm
-        result = self.tbm.classify(b)
-        print result
+        overlaps = self.tbm.classify(b)
+
+        self.assertTrue('a' in overlaps[0])
+        self.assertTrue('b' not in overlaps[0])
+        self.assertTrue('a' in overlaps[1])
+        self.assertTrue('b' in overlaps[1])
+        self.assertTrue('a' in overlaps[2])
+        self.assertTrue('b' not in overlaps[2])
+
+    def test_missing(self):
+        b = Chunk(5, 10, 'b')
+
+        needed = self.tbm.missing(b)
+        self.assertEqual(len(needed), 2)
+
+        for c in needed:
+            self.assertTrue('a' in c)
+            self.assertTrue('b' not in c)
+
+    def test_add(self):
+        b = Chunk(5, 10, 'b')
+
+        self.tbm.add(b)
+        tbm_chunks = self.tbm.chunks
+        self.assertEqual(len(tbm_chunks), 3) 
+        
+        self.assertTrue('a' in tbm_chunks[0])
+        self.assertTrue('b' not in tbm_chunks[0])
+        self.assertTrue('a' in tbm_chunks[1])
+        self.assertTrue('b' in tbm_chunks[1])
+        self.assertTrue('a' in tbm_chunks[2])
+        self.assertTrue('b' not in tbm_chunks[2])

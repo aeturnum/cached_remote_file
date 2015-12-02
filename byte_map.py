@@ -1,11 +1,12 @@
+import json
 
 class Chunk(object):
-    def __init__(self, start, end, tag=None):
+    def __init__(self, start, end, tags=""):
         if start > end:
             raise ValueError("Start[{}] must be smaller than end[{}]!".format(start, end))
         self.start = start
         self.end = end
-        self.tag = tag
+        self.tags = set(tags)
 
     def overlap(self, other):
         """
@@ -55,7 +56,11 @@ class Chunk(object):
                 last = self.child(s=other.end + 1)
             #print('{}:{} -> last: {}'.format(self, other, last))
 
-        mid = self.child(s = first.end + 1 if first else None, e = last.start - 1 if last else None)
+        mid = Chunk(
+            first.end + 1 if first else self.start, 
+            last.start - 1 if last else self.end,
+            self.tags.union(other.tags)
+            )
         #print('{}:{} -> mid:{}'.format(self, other, mid))
 
         final = [chunk for chunk in [first, mid, last] if chunk]
@@ -68,7 +73,7 @@ class Chunk(object):
             s = self.start
         if not e:
             e = self.end
-        return Chunk(s, e, self.tag)
+        return Chunk(s, e, self.tags)
 
     def _check_type(self, other):
         if type(other) is list:
@@ -101,13 +106,21 @@ class Chunk(object):
         other = self._check_type(other)
         return self > other or self == other
 
+    def __contains__(self, item):
+        if type(item) is int:
+            return self.start >= item and item <= self.end
+        if type(item) is str:
+            return item in self.tags
+        if type(item) is set:
+            return item.issubset(self.tags)
+
     def does_overlap(self, other):
         other = self._check_type(other)
         return not (other.start > self.end or other.end < self.start)
 
     def merge(self, other):
         other = self._check_type(other)
-        if self.tag != other.tag:
+        if self.tags != other.tag:
             raise ValueError('Tags do not match! Cannot merge!')
         if not self.does_overlap(other):
             raise ValueError('Chunks do not overlap!')
@@ -119,19 +132,25 @@ class Chunk(object):
 
     @staticmethod
     def from_dict(self, d):
+        if type(d) is str:
+            try:
+                d = json.loads(d)
+            except:
+                return None
+
         return Chunk(d['start'], d['end'], d['tag'])
 
     def to_dict(self):
         return {
             'start': self.start,
             'end': self.end,
-            'tag': self.tag
+            'tags': self.tags
         }
 
     def __str__(self):
         tag = ''
-        if self.tag:
-            tag = '|{}'.format(self.tag)
+        if self.tags:
+            tag = '|{}'.format(','.join(self.tags))
         return 'C{}[{}:{}]'.format(tag, self.start, self.end)
 
     def __repr__(self):
@@ -140,6 +159,11 @@ class Chunk(object):
 class ByteMap(object):
     def __init__(self, size, default_tag='remote'):
         self.chunks = [Chunk(0, size - 1, default_tag)]
+
+    def missing(self, new_chunk):
+        return [
+                c for c in self.classify(new_chunk) if new_chunk.tags not in c
+                ]
 
     def classify(self, new_chunk):
         for chunk in self.chunks:
@@ -153,20 +177,34 @@ class ByteMap(object):
         for i, chunk in enumerate(self.chunks):
             if chunk.does_overlap(new_chunk):
                 # break up old chunk into new 
-                new_chunk, old_chunks = new_chunk.overlap(chunk)
+                new_chunks = new_chunk.overlap(chunk)
                 # add new data to split old data
-                old_chunks.append(new_chunk)
-                # sort the result
-                old_chunks.sort()
-                # remove the chunk we overlap with
+                
                 self.chunks.remove(chunk)
-                for j, piece in enumerate(old_chunks):
+                for j, piece in enumerate(new_chunks):
                     # insert newly generated chunks in order
                     self.chunks.insert(i + j, piece)
 
                 return
 
         raise ValueError("No overlap at all!")
+
+    @staticmethod
+    def from_dict(self, d):
+        if type(d) is str:
+            try:
+                d = json.loads(d)
+            except:
+                return None
+        bm = ByteMap(0)
+        bm.chunks = []
+        for chunk in d:
+            bm.chunks.append(Chunk.from_dict(d))
+
+        return bm
+
+    def to_dict(self):
+        return [chunk.to_dict() for chunk in self.chunks]
 
     def __str__(self):
         return 'ByteMap[{}]'.format(','.join(map(str,self.chunks)))
