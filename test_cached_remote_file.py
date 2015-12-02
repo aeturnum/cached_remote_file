@@ -7,11 +7,11 @@ import time
 
 TEST_DIRECTORY = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 TEST_DATA_DIRECTORY = 'test_data'
-REMOTE_FILE = 'http://localhost:8000/data'
+REMOTE_FILE = 'http://localhost:8100/data'
 
 class TestCRF(unittest.TestCase):
     def setUp(self):
-        python_server_args = ['python', '-m', 'SimpleHTTPServer']
+        python_server_args = ['python', '-m', 'SimpleHTTPServer', '8100']
         cwd = os.path.join(TEST_DIRECTORY, TEST_DATA_DIRECTORY)
         self.server = subprocess.Popen(
             python_server_args,
@@ -25,4 +25,4 @@ class TestCRF(unittest.TestCase):
 
     def test_read(self):
         data = requests.get(REMOTE_FILE)
-        print data.content
+        print 'data.content: {}'.format(data.content)
